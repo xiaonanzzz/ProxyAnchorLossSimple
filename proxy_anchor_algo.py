@@ -96,7 +96,7 @@ class ProxyAnchorLossEmbeddingModelTrainer():
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-    def train(self, model, train_dataset, sz_embedding, nb_classes):
+    def train(self, model, train_dataset, sz_embedding, nb_classes, epoch_end_hook=None):
         args = self
 
         criterion = ProxyAnchorLoss(nb_classes=nb_classes, sz_embed=sz_embedding, mrg=self.mrg,
@@ -108,7 +108,6 @@ class ProxyAnchorLossEmbeddingModelTrainer():
         opt = prepare_optimizer(args, param_groups)
 
         scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=args.lr_decay_step, gamma=args.lr_decay_gamma)
-
 
         print("Training parameters: {}".format(vars(args)))
 
@@ -144,12 +143,12 @@ class ProxyAnchorLossEmbeddingModelTrainer():
                         epoch, batch_idx + 1, len(dl_tr),
                         100. * batch_idx / len(dl_tr),
                         np.mean(losses_per_epoch)))
+            pbar.close()
             scheduler.step()
 
-            self.epoch_end_hook()
-
-    def epoch_end_hook(self):
-        pass
+            if epoch_end_hook is not None:
+                print('epoch done. calling hook function')
+                epoch_end_hook()
 
 
 class LinearEmbedder(torch.nn.Module):
