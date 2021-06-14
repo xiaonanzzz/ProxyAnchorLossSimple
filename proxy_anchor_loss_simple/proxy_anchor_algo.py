@@ -118,7 +118,8 @@ class ProxyAnchorLossEmbeddingModelTrainer():
             pin_memory=True
         )
 
-        for epoch in range(0, args.nb_epochs):
+        for epoch in range(1, args.nb_epochs + 1):
+
             losses_per_epoch = []
 
             model.train()
@@ -126,11 +127,18 @@ class ProxyAnchorLossEmbeddingModelTrainer():
             criterion.to(self.device)
             pbar = tqdm(enumerate(dl_tr))
             for batch_idx, (x, y) in pbar:
+                assert torch.isnan(x).sum() == 0
                 m = model(x.to(self.device))
                 loss = criterion(m, y.to(self.device))
 
                 opt.zero_grad()
                 loss.backward()
+
+                if torch.isnan(loss).sum() > 0:
+                    print('model input\n', x)
+                    print('embedding output\n', m)
+                    print('label', y)
+                    raise RuntimeError()
 
                 torch.nn.utils.clip_grad_value_(model.parameters(), 10)
                 torch.nn.utils.clip_grad_value_(criterion.parameters(), 10)
@@ -148,7 +156,7 @@ class ProxyAnchorLossEmbeddingModelTrainer():
 
             if epoch_end_hook is not None:
                 print('epoch done. calling hook function')
-                epoch_end_hook()
+                epoch_end_hook(context={'epoch': epoch})
 
 
 class LinearEmbedder(torch.nn.Module):
